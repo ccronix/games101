@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:/Users/Cronix/Documents/cronix_dev/lib_install/eigen_3.4/include",
+                "C:/Users/Cronix/Documents/cronix_dev/lib_install/opencv_4.6/include"
+            ]
+        }
+    ],
+    "version": 4
+}
