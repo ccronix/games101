@@ -47,10 +47,14 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         Eigen::Vector3f l = (light.position - point).normalized();
         Eigen::Vector3f v = (eye_pos - point).normalized();
         Eigen::Vector3f h = (v + l).normalized();
-        float r_sqr = (light.position - point).squaredNorm();
+
+        float r2 = (light.position - point).squaredNorm();
+        float cos_d = std::max(0.f, normal.dot(l));
+        float cos_s = std::pow(std::max(0.f, normal.dot(h)), p);
+
         Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
-        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r_sqr) * std::max(0.f, normal.normalized().dot(l));
-        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r_sqr) * std::pow(std::max(0.f, normal.normalized().dot(h)), p); 
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r2) * cos_d;
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r2) * cos_s; 
         
         result_color += ambient + diffuse + specular;
     }
@@ -64,6 +68,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     if (payload.texture)
     {
         // TODO: Get the texture value at the texture coordinates of the current fragment
+        return_color = payload.texture->getColorBilinear(payload.tex_coords[0], payload.tex_coords[1]);
 
     }
     Eigen::Vector3f texture_color;
@@ -92,6 +97,19 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        Eigen::Vector3f l = (light.position - point).normalized();
+        Eigen::Vector3f v = (eye_pos - point).normalized();
+        Eigen::Vector3f h = (v + l).normalized();
+
+        float r2 = (light.position - point).squaredNorm();
+        float cos_d = std::max(0.f, normal.dot(l));
+        float cos_s = std::pow(std::max(0.f, normal.dot(h)), p);
+        
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r2) * cos_d;
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r2) * cos_s;
+        
+        result_color += ambient + diffuse + specular;
 
     }
 
