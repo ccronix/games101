@@ -8,6 +8,12 @@
 #include "Texture.hpp"
 #include "OBJ_Loader.h"
 
+double degree_to_arc(double degree)
+{
+    double arc = degree * MY_PI / 180;
+    return arc;
+}
+
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
@@ -23,33 +29,68 @@ Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
     return view;
 }
 
-Eigen::Matrix4f get_model_matrix(float angle)
+Eigen::Matrix4f get_model_matrix(float angle_x, float angle_y, float angle_z)
 {
-    Eigen::Matrix4f rotation;
-    angle = angle * MY_PI / 180.f;
-    rotation << cos(angle), 0, sin(angle), 0,
-                0, 1, 0, 0,
-                -sin(angle), 0, cos(angle), 0,
+    Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
+    float rotation_x_arc = degree_to_arc(angle_x);
+    float rotation_y_arc = degree_to_arc(angle_y);
+    float rotation_z_arc = degree_to_arc(angle_z);
+
+    Eigen::Matrix4f rotate_x, rotate_y, rotate_z;
+    Eigen::Matrix4f translate_2z, translate_2z_inv;
+
+    rotate_x << 1, 0, 0, 0,
+                0, cos(rotation_x_arc), -sin(rotation_x_arc), 0,
+                0, sin(rotation_x_arc),  cos(rotation_x_arc), 0,
                 0, 0, 0, 1;
 
-    Eigen::Matrix4f scale;
-    scale << 2.5, 0, 0, 0,
-              0, 2.5, 0, 0,
-              0, 0, 2.5, 0,
-              0, 0, 0, 1;
+    rotate_y << cos(rotation_y_arc),  0, sin(rotation_y_arc), 0,
+                0, 1, 0, 0,
+                -sin(rotation_y_arc), 0, cos(rotation_y_arc), 0,
+                0, 0, 0, 1;
 
-    Eigen::Matrix4f translate;
-    translate << 1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1;
-
-    return translate * rotation * scale;
+    rotate_z << cos(rotation_z_arc), -sin(rotation_z_arc), 0, 0,
+                sin(rotation_z_arc),  cos(rotation_z_arc), 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1;
+    
+    model = rotate_x * rotate_y * rotate_z * model;
+    return model;
 }
 
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
     // TODO: Use the same projection matrix from the previous assignments
+    Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
+    float half_fov_arc = degree_to_arc(eye_fov / 2);
+    float top = -zNear * tan(half_fov_arc);
+    float bottom = -top;
+    float right = top * aspect_ratio;
+    float left = - right;
+
+    Eigen::Matrix4f scale, translate, perspective, mirror;
+    scale << 2 / (right - left), 0, 0, 0,
+             0, 2 / (top - bottom), 0, 0,
+             0, 0, 2 / (zNear - zFar), 0,
+             0, 0, 0, 1;
+    
+    translate << 1, 0, 0, -(right + left) / 2,
+                 0, 1, 0, -(top + bottom) / 2,
+                 0, 0, 1, -(zNear + zFar) / 2,
+                 0, 0, 0, 1;
+
+    perspective << zNear, 0, 0, 0,
+                   0, zNear, 0, 0,
+                   0, 0, zNear + zFar, - zNear * zFar,
+                   0, 0, 1, 0;
+    
+    // mirror << 1, 0,  0, 0,
+    //           0, 1,  0, 0,
+    //           0, 0, -1, 0,
+    //           0, 0,  0, 1;
+
+    projection = translate * scale * perspective;
+    return projection;
 
 }
 
@@ -142,7 +183,15 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        Eigen::Vector3f l = (light.position - point).normalized();
+        Eigen::Vector3f v = (eye_pos - point).normalized();
+        Eigen::Vector3f h = (v + l).normalized();
+        float r_sqr = (light.position - point).squaredNorm();
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r_sqr) * std::max(0.f, normal.normalized().dot(l));
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r_sqr) * std::pow(std::max(0.f, normal.normalized().dot(h)), p); 
         
+        result_color = ambient + diffuse + specular;
     }
 
     return result_color * 255.f;
@@ -242,15 +291,15 @@ int main(int argc, const char** argv)
 {
     std::vector<Triangle*> TriangleList;
 
-    float angle = 140.0;
+    float angle_x = 0, angle_y = 140, angle_z = 0;
     bool command_line = false;
 
     std::string filename = "output.png";
     objl::Loader Loader;
-    std::string obj_path = "../models/spot/";
+    std::string obj_path = "./models/spot/";
 
     // Load .obj File
-    bool loadout = Loader.LoadFile("../models/spot/spot_triangulated_good.obj");
+    bool loadout = Loader.LoadFile("./models/spot/spot_triangulated_good.obj");
     for(auto mesh:Loader.LoadedMeshes)
     {
         for(int i=0;i<mesh.Vertices.size();i+=3)
@@ -307,7 +356,10 @@ int main(int argc, const char** argv)
         }
     }
 
-    Eigen::Vector3f eye_pos = {0,0,10};
+    Eigen::Vector3f eye_pos = {0,0,3};
+
+    active_shader = phong_fragment_shader;
+    std::vector<std::string> shader_types;
 
     r.set_vertex_shader(vertex_shader);
     r.set_fragment_shader(active_shader);
@@ -318,7 +370,7 @@ int main(int argc, const char** argv)
     if (command_line)
     {
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
-        r.set_model(get_model_matrix(angle));
+        r.set_model(get_model_matrix(angle_x, angle_y, angle_z));
         r.set_view(get_view_matrix(eye_pos));
         r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
 
@@ -336,7 +388,7 @@ int main(int argc, const char** argv)
     {
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
 
-        r.set_model(get_model_matrix(angle));
+        r.set_model(get_model_matrix(angle_x, angle_y, angle_z));
         r.set_view(get_view_matrix(eye_pos));
         r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
 
@@ -347,16 +399,33 @@ int main(int argc, const char** argv)
         cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
 
         cv::imshow("image", image);
-        cv::imwrite(filename, image);
+        // cv::imwrite(filename, image);
         key = cv::waitKey(10);
 
-        if (key == 'a' )
-        {
-            angle -= 0.1;
+        std::cout << "frame count: " << frame_count++ << '\n';
+
+        if (key == 'w') {
+            angle_x += 10;
         }
-        else if (key == 'd')
-        {
-            angle += 0.1;
+        else if (key == 's') {
+            angle_x -= 10;
+        }
+        else if (key == 'a') {
+            angle_y += 10;
+        }
+        else if (key == 'd') {
+            angle_y -= 10;
+        }
+        else if (key == 'q') {
+            angle_z += 10;
+        }
+        else if (key == 'e') {
+            angle_z -= 10;
+        }
+        else if (key == 'r') {
+            angle_x = 0;
+            angle_y = 0;
+            angle_z = 0;
         }
 
     }
