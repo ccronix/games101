@@ -166,7 +166,9 @@ int main(int argc, const char** argv)
 
     Eigen::Vector3f eye_pos = {0,0,3};
 
-    active_shader = phong_fragment_shader;
+    active_shader = texture_fragment_shader;
+    texture_path = "spot_texture.png";
+    r.set_texture(Texture(obj_path + texture_path));
     std::vector<std::string> shader_types;
 
     r.set_vertex_shader(vertex_shader);
