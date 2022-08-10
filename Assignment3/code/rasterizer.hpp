@@ -70,7 +70,21 @@ namespace rst
         void set_view(const Eigen::Matrix4f& v);
         void set_projection(const Eigen::Matrix4f& p);
 
-        void set_texture(Texture tex) { texture = tex; }
+        void set_diffuse(Texture diff) {
+            diffuse = diff;
+            }
+
+        void set_specular(Texture spec) {
+            specular = spec;
+            }
+
+        void set_bump(Texture bmp) {
+            bump = bmp;
+            }
+
+        void set_displacement(Texture disp) {
+            displacement = disp;
+            }
 
         void set_vertex_shader(std::function<Eigen::Vector3f(vertex_shader_payload)> vert_shader);
         void set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader);
@@ -103,7 +117,10 @@ namespace rst
         std::map<int, std::vector<Eigen::Vector3f>> col_buf;
         std::map<int, std::vector<Eigen::Vector3f>> nor_buf;
 
-        std::optional<Texture> texture;
+        std::optional<Texture> diffuse;
+        std::optional<Texture> specular;
+        std::optional<Texture> bump;
+        std::optional<Texture> displacement;
 
         std::function<Eigen::Vector3f(fragment_shader_payload)> fragment_shader;
         std::function<Eigen::Vector3f(vertex_shader_payload)> vertex_shader;

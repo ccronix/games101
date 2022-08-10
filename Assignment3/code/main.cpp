@@ -126,7 +126,7 @@ int main(int argc, const char** argv)
     rst::rasterizer r(700, 700);
 
     auto texture_path = "hmap.jpg";
-    r.set_texture(Texture(obj_path + texture_path));
+    r.set_diffuse(Texture(obj_path + texture_path));
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
 
@@ -140,7 +140,7 @@ int main(int argc, const char** argv)
             std::cout << "Rasterizing using the texture shader\n";
             active_shader = texture_fragment_shader;
             texture_path = "spot_texture.png";
-            r.set_texture(Texture(obj_path + texture_path));
+            r.set_diffuse(Texture(obj_path + texture_path));
         }
         else if (argc == 3 && std::string(argv[2]) == "normal")
         {
@@ -168,7 +168,9 @@ int main(int argc, const char** argv)
 
     active_shader = texture_fragment_shader;
     texture_path = "spot_texture.png";
-    r.set_texture(Texture(obj_path + texture_path));
+
+    r.set_diffuse(Texture(obj_path + texture_path));
+    
     std::vector<std::string> shader_types;
 
     r.set_vertex_shader(vertex_shader);
