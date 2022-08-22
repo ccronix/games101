@@ -173,7 +173,8 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 {
     
     Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
-    Eigen::Vector3f kd = payload.color;
+    Eigen::Vector3f kd = Eigen::Vector3f(0.5, 0.5, 0.5);
+    // Eigen::Vector3f kd = payload.color;
     Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
 
     auto l1 = light{{20, 20, 20}, {500, 500, 500}};
@@ -203,7 +204,7 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Normal n = normalize(TBN * ln)
     float x = normal.x(), y = normal.y(), z = normal.z();
     Eigen::Vector3f t(x * y / std::sqrt(x * x + z * z), std::sqrt(x * x + z * z), z * y / std::sqrt(x * x + z * z));
-    Eigen::Vector3f b = t.cross(normal);
+    Eigen::Vector3f b = normal.cross(t);
     Eigen::Matrix3f disp_TBN;
     disp_TBN << t, b, normal;
     auto u = payload.tex_coords.x();
@@ -244,26 +245,30 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 
 Eigen::Vector3f hybrid_fragment_shader(const fragment_shader_payload& payload)
 {
-    Eigen::Vector3f diffuse_color = {0.5 * 255, 0.2 * 255, 0.1 * 255};
-    Eigen::Vector3f specular_color = {0.7937 * 255, 0.7937 * 255, 0.7937 * 255};
-    if (payload.diffuse)
-    {
+    Eigen::Vector3f diffuse_color;
+    Eigen::Vector3f specular_color;
+    Eigen::Vector3f bump_value;
+    Eigen::Vector3f displacement_value;
+
+    
+    if (payload.diffuse) {
         diffuse_color = payload.diffuse->getColorBilinear(payload.tex_coords[0], payload.tex_coords[1]);
     }
-    if (payload.specular)
-    {
+    else {
+        diffuse_color = {0.5, 0.5, 0.5};
+        diffuse_color = diffuse_color * 255;
+    }
+    if (payload.specular) {
         specular_color = payload.specular->getColorBilinear(payload.tex_coords[0], payload.tex_coords[1]);
     }
-
-    Eigen::Vector3f diffuse_clr;
-    diffuse_clr << diffuse_color.x(), diffuse_color.y(), diffuse_color.z();
-
-    Eigen::Vector3f specular_clr;
-    specular_clr << specular_color.x(), specular_color.y(), specular_color.z();
+    else {
+        specular_color = {0.8, 0.8, 0.8};
+        specular_color = specular_color * 255;
+    }
 
     Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
-    Eigen::Vector3f kd = diffuse_clr / 255.f;
-    Eigen::Vector3f ks = specular_clr / 255.f;
+    Eigen::Vector3f kd = diffuse_color / 255.f;
+    Eigen::Vector3f ks = specular_color / 255.f;
 
     auto l1 = light{{20, 20, 20}, {800, 800, 800}};
     auto l2 = light{{-20, 20, 0}, {600, 600, 600}};
@@ -274,44 +279,54 @@ Eigen::Vector3f hybrid_fragment_shader(const fragment_shader_payload& payload)
 
     float p = 150;
 
-    Eigen::Vector3f color = diffuse_clr;
+    Eigen::Vector3f color = diffuse_color;
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
-    Eigen::Vector3f result_color = {0, 0, 0};
-
     float kh = 0.2, kn = 0.1;
-
+    
     float x = normal.x(), y = normal.y(), z = normal.z();
     Eigen::Vector3f t(x * y / std::sqrt(x * x + z * z), std::sqrt(x * x + z * z), z * y / std::sqrt(x * x + z * z));
     Eigen::Vector3f b = t.cross(normal);
     
-
-    // float x = normal.x(), y = normal.y(), z = normal.z();
-    // Eigen::Vector3f t(x * y / std::sqrt(x * x + z * z), std::sqrt(x * x + z * z), z * y / std::sqrt(x * x + z * z));
-    // Eigen::Vector3f b = t.cross(normal);
-    Eigen::Matrix3f disp_TBN;
-    disp_TBN << t, b, normal;
     auto u = payload.tex_coords.x();
     auto v = payload.tex_coords.y();
-    auto d_w = payload.displacement->width;
-    auto d_h = payload.displacement->height;
-    float disp_dU = kh * kn * (payload.displacement->getColor(u + 1.f / d_w, v).norm() - payload.displacement->getColor(u, v).norm());
-    float disp_dV = kh * kn * (payload.displacement->getColor(u, v + 1.f / d_h).norm() - payload.displacement->getColor(u, v).norm());
-    Eigen::Vector3f disp_ln(-disp_dU, -disp_dV, 1.f);
-    Eigen::Vector3f disp_point = point + kn * normal * payload.displacement->getColor(u, v).norm();
-    Eigen::Vector3f disp_normal = (disp_TBN * disp_ln).normalized();
 
-    Eigen::Matrix3f bump_TBN;
-    bump_TBN << t, b, disp_normal;
-    auto b_w = payload.bump->width;
-    auto b_h = payload.bump->height;
-    float bmp_dU = kh * kn * (payload.bump->getColor(u + 1.f / b_w, v).norm() - payload.bump->getColor(u, v).norm());
-    float bmp_dV = kh * kn * (payload.bump->getColor(u, v + 1.f / b_h).norm() - payload.bump->getColor(u, v).norm());
-    Eigen::Vector3f bmp_ln(-bmp_dU, -bmp_dV, 1.f);
+    Eigen::Vector3f disp_point;
+    Eigen::Vector3f disp_normal;
     Eigen::Vector3f bmp_normal;
-    bmp_normal = (bump_TBN * bmp_ln).normalized();
 
+    if (payload.displacement) {
+        Eigen::Matrix3f disp_TBN;
+        disp_TBN << t, b, normal;
+        auto d_w = payload.displacement->width;
+        auto d_h = payload.displacement->height;
+        float disp_dU = kh * kn * (payload.displacement->getColor(u + 1.f / d_w, v).norm() - payload.displacement->getColor(u, v).norm());
+        float disp_dV = kh * kn * (payload.displacement->getColor(u, v + 1.f / d_h).norm() - payload.displacement->getColor(u, v).norm());
+        Eigen::Vector3f disp_ln(-disp_dU, -disp_dV, 1.f);
+        disp_point = point + kn * normal * payload.displacement->getColor(u, v).norm();
+        disp_normal = (disp_TBN * disp_ln).normalized();
+    }
+    else {
+        disp_point = point;
+        disp_normal = normal;
+    }
+
+    if (payload.bump) {
+        Eigen::Matrix3f bump_TBN;
+        bump_TBN << t, b, disp_normal;
+        auto b_w = payload.bump->width;
+        auto b_h = payload.bump->height;
+        float bmp_dU = kh * kn * (payload.bump->getColor(u + 1.f / b_w, v).norm() - payload.bump->getColor(u, v).norm());
+        float bmp_dV = kh * kn * (payload.bump->getColor(u, v + 1.f / b_h).norm() - payload.bump->getColor(u, v).norm());
+        Eigen::Vector3f bmp_ln(-bmp_dU, -bmp_dV, 1.f);
+        bmp_normal = (bump_TBN * bmp_ln).normalized();
+    }
+    else {
+        bmp_normal = disp_normal;
+    }
+
+    Eigen::Vector3f result_color = {0, 0, 0};
 
     for (auto& light : lights)
     {
