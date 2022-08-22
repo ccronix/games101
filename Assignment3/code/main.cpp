@@ -104,10 +104,10 @@ int main(int argc, const char** argv)
 
     std::string filename = "output.png";
     objl::Loader Loader;
-    std::string obj_path = "./models/spot/";
+    std::string obj_path = "./models/skull/";
 
     // Load .obj File
-    bool loadout = Loader.LoadFile("./models/spot/spot_triangulated_good.obj");
+    bool loadout = Loader.LoadFile("./models/skull/sphere.obj");
     for(auto mesh:Loader.LoadedMeshes)
     {
         for(int i=0;i<mesh.Vertices.size();i+=3)
@@ -123,53 +123,59 @@ int main(int argc, const char** argv)
         }
     }
 
-    rst::rasterizer r(700, 700);
-
-    auto texture_path = "hmap.jpg";
-    r.set_diffuse(Texture(obj_path + texture_path));
+    rst::rasterizer r(1024, 1024);
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
 
-    if (argc >= 2)
-    {
-        command_line = true;
-        filename = std::string(argv[1]);
+    // auto texture_path = "diffuse.tif";
+    // r.set_diffuse(Texture(obj_path + texture_path));
 
-        if (argc == 3 && std::string(argv[2]) == "texture")
-        {
-            std::cout << "Rasterizing using the texture shader\n";
-            active_shader = texture_fragment_shader;
-            texture_path = "spot_texture.png";
-            r.set_diffuse(Texture(obj_path + texture_path));
-        }
-        else if (argc == 3 && std::string(argv[2]) == "normal")
-        {
-            std::cout << "Rasterizing using the normal shader\n";
-            active_shader = normal_fragment_shader;
-        }
-        else if (argc == 3 && std::string(argv[2]) == "phong")
-        {
-            std::cout << "Rasterizing using the phong shader\n";
-            active_shader = phong_fragment_shader;
-        }
-        else if (argc == 3 && std::string(argv[2]) == "bump")
-        {
-            std::cout << "Rasterizing using the bump shader\n";
-            active_shader = bump_fragment_shader;
-        }
-        else if (argc == 3 && std::string(argv[2]) == "displacement")
-        {
-            std::cout << "Rasterizing using the bump shader\n";
-            active_shader = displacement_fragment_shader;
-        }
-    }
+    // if (argc >= 2)
+    // {
+    //     command_line = true;
+    //     filename = std::string(argv[1]);
 
-    Eigen::Vector3f eye_pos = {0,0,3};
+    //     if (argc == 3 && std::string(argv[2]) == "texture")
+    //     {
+    //         std::cout << "Rasterizing using the texture shader\n";
+    //         active_shader = texture_fragment_shader;
+    //         texture_path = "spot_texture.png";
+    //         r.set_diffuse(Texture(obj_path + texture_path));
+    //     }
+    //     else if (argc == 3 && std::string(argv[2]) == "normal")
+    //     {
+    //         std::cout << "Rasterizing using the normal shader\n";
+    //         active_shader = normal_fragment_shader;
+    //     }
+    //     else if (argc == 3 && std::string(argv[2]) == "phong")
+    //     {
+    //         std::cout << "Rasterizing using the phong shader\n";
+    //         active_shader = phong_fragment_shader;
+    //     }
+    //     else if (argc == 3 && std::string(argv[2]) == "bump")
+    //     {
+    //         std::cout << "Rasterizing using the bump shader\n";
+    //         active_shader = bump_fragment_shader;
+    //     }
+    //     else if (argc == 3 && std::string(argv[2]) == "displacement")
+    //     {
+    //         std::cout << "Rasterizing using the bump shader\n";
+    //         active_shader = displacement_fragment_shader;
+    //     }
+    // }
 
-    active_shader = texture_fragment_shader;
-    texture_path = "spot_texture.png";
+    Eigen::Vector3f eye_pos = {0,0,20};
 
-    r.set_diffuse(Texture(obj_path + texture_path));
+    active_shader = hybrid_fragment_shader;
+    auto diffuse_texture_path = "diffuse.tif";
+    auto specular_texture_path = "trans.tif";
+    auto bump_texture_path = "normal.tif";
+    auto disp_texture_path = "disp.tif";
+
+    r.set_diffuse(Texture(obj_path + diffuse_texture_path));
+    r.set_specular(Texture(obj_path + specular_texture_path));
+    r.set_bump(Texture(obj_path + bump_texture_path));
+    r.set_displacement(Texture(obj_path + disp_texture_path));
     
     std::vector<std::string> shader_types;
 
@@ -187,7 +193,7 @@ int main(int argc, const char** argv)
         r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
 
         r.draw(TriangleList);
-        cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());
+        cv::Mat image(1024, 1024, CV_32FC3, r.frame_buffer().data());
         image.convertTo(image, CV_8UC3, 1.0f);
         cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
 
@@ -206,12 +212,11 @@ int main(int argc, const char** argv)
 
         //r.draw(pos_id, ind_id, col_id, rst::Primitive::Triangle);
         r.draw(TriangleList);
-        cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());
+        cv::Mat image(1024, 1024, CV_32FC3, r.frame_buffer().data());
         image.convertTo(image, CV_8UC3, 1.0f);
         cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
 
         cv::imshow("image", image);
-        // cv::imwrite(filename, image);
         key = cv::waitKey(10);
 
         std::cout << "frame count: " << frame_count++ << '\n';
