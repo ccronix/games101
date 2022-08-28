@@ -10,11 +10,11 @@ class Scene
 {
 public:
     // setting up options
-    int width = 1280;
-    int height = 960;
+    int width = 1920;
+    int height = 1080;
     double fov = 90;
     Vector3f backgroundColor = Vector3f(0.235294, 0.67451, 0.843137);
-    int maxDepth = 5;
+    int maxDepth = 10;
     float epsilon = 0.00001;
 
     Scene(int w, int h) : width(w), height(h)
