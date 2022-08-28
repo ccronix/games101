@@ -117,7 +117,6 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
     else {
         return false;
     }
-    
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
