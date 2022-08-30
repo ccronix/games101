@@ -99,7 +99,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 Intersection BVHAccel::Intersect(const Ray& ray) const
 {
     Intersection isect;
-    if (!root)
+    if (! root)
         return isect;
     isect = BVHAccel::getIntersection(root, ray);
     return isect;
