@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
     Renderer r;
 
     auto start = std::chrono::system_clock::now();
-    r.Render(scene, 8);
+    r.Render(scene, 16);
     auto stop = std::chrono::system_clock::now();
 
     std::cout << "Render complete: \n";

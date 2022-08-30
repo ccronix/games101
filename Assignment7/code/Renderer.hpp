@@ -16,6 +16,6 @@ class Renderer
 {
 public:
     void Render(const Scene& scene, const int spp = 16);
-
+    bool writeImage(const int width, const int height, const std::vector<Vector3f> framebuffer, const char* path = "binary.ppm");
 private:
 };

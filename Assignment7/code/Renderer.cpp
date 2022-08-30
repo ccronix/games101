@@ -25,18 +25,20 @@ void Renderer::Render(const Scene& scene, const int spp)
     int m = 0;
 
     // change the spp value to change sample ammount
-    // int spp = 16;
     std::cout << "SPP: " << spp << "\n";
+
     for (int j = 0; j < scene.height; ++j) {
         for (int i = 0; i < scene.width; ++i) {
             // generate primary ray direction
-            float x = (2 * (i + 0.5) / (float)scene.width - 1) * scale * imageAspectRatio;
-            float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
-
-            Vector3f dir = normalize(Vector3f(-x, y, 1));
             #pragma omp parallel for
             for (int k = 0; k < spp; k++){
-                framebuffer[m] += scene.castRay(Ray(eye_pos, dir), 0) / spp;  
+                
+                // MSAA emit direction ratio is k divide spp
+                float x = (2 * (i + k / (float) spp) / (float) scene.width - 1) * scale * imageAspectRatio;
+                float y = (1 - 2 * (j + k / (float) spp) / (float) scene.height) * scale;
+
+                Vector3f direction = normalize(Vector3f(-x, y, 1));
+                framebuffer[m] += scene.castRay(Ray(eye_pos, direction), 0) / spp;  
             }
             m++;
         }
@@ -44,10 +46,16 @@ void Renderer::Render(const Scene& scene, const int spp)
     }
     UpdateProgress(1.f);
 
+    Renderer::writeImage(scene.width, scene.height, framebuffer);
+}
+
+
+bool Renderer::writeImage(const int width, const int height, const std::vector<Vector3f> framebuffer, const char* path)
+{
     // save framebuffer to file
-    FILE* fp = fopen("binary.ppm", "wb");
-    (void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
-    for (auto i = 0; i < scene.height * scene.width; ++i) {
+    FILE* fp = fopen(path, "wb");
+    (void)fprintf(fp, "P6\n%d %d\n255\n", width, height);
+    for (int i = 0; i < width * height; i++) {
         static unsigned char color[3];
         color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
         color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
@@ -55,4 +63,5 @@ void Renderer::Render(const Scene& scene, const int spp)
         fwrite(color, 1, 3, fp);
     }
     fclose(fp);    
+    return true;
 }
