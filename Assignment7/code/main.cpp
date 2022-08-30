@@ -10,28 +10,30 @@
 // lights) as well as set the options for the render (image width and height,
 // maximum recursion depth, field-of-view, etc.). We then call the render
 // function().
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
 
     // Change the definition here to change resolution
-    Scene scene(784, 784);
+    Scene scene(1024, 1024);
 
     Material* red = new Material(DIFFUSE, Vector3f(0.0f));
-    red->Kd = Vector3f(0.63f, 0.065f, 0.05f);
+    red->Kd = Vector3f(0.75f, 0.25f, 0.25f);
     Material* green = new Material(DIFFUSE, Vector3f(0.0f));
-    green->Kd = Vector3f(0.14f, 0.45f, 0.091f);
+    green->Kd = Vector3f(0.25f, 0.25f, 0.75f);
     Material* white = new Material(DIFFUSE, Vector3f(0.0f));
-    white->Kd = Vector3f(0.725f, 0.71f, 0.68f);
-    Material* light = new Material(DIFFUSE, (8.0f * Vector3f(0.747f+0.058f, 0.747f+0.258f, 0.747f) + 15.6f * Vector3f(0.740f+0.287f,0.740f+0.160f,0.740f) + 18.4f *Vector3f(0.737f+0.642f,0.737f+0.159f,0.737f)));
+    white->Kd = Vector3f(0.75, 0.75, 0.75);
+    Material* light = new Material(DIFFUSE, (42.0 * Vector3f(0.9, 0.75, 0.6)));
     light->Kd = Vector3f(0.65f);
 
-    MeshTriangle floor("../models/cornellbox/floor.obj", white);
-    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", white);
-    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", white);
-    MeshTriangle left("../models/cornellbox/left.obj", red);
-    MeshTriangle right("../models/cornellbox/right.obj", green);
-    MeshTriangle light_("../models/cornellbox/light.obj", light);
+    MeshTriangle front("cornell/pFront.obj", white);
+    MeshTriangle floor("cornell/pBack.obj", white);
+    MeshTriangle shortbox("cornell/boxSmall.obj", white);
+    MeshTriangle tallbox("cornell/boxTall.obj", white);
+    MeshTriangle left("cornell/pLeft.obj", red);
+    MeshTriangle right("cornell/pRight.obj", green);
+    MeshTriangle light_("cornell/light.obj", light);
 
+    scene.Add(&front);
     scene.Add(&floor);
     scene.Add(&shortbox);
     scene.Add(&tallbox);
@@ -44,7 +46,7 @@ int main(int argc, char** argv)
     Renderer r;
 
     auto start = std::chrono::system_clock::now();
-    r.Render(scene);
+    r.Render(scene, 8);
     auto stop = std::chrono::system_clock::now();
 
     std::cout << "Render complete: \n";
