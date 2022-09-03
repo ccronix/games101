@@ -77,50 +77,75 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     Vector3f L_direct(0, 0, 0);
     Vector3f L_indirect(0, 0, 0);
     
-    Intersection emit_from_light;
-    float PDF_light = 0.0f;
-    sampleLight(emit_from_light, PDF_light);    
-    
+    switch (emit_from_camera.m->getType()) {
+        case DIFFUSE:
+        {
+            Intersection emit_from_light;
+            float PDF_light = 0.0f;
+            sampleLight(emit_from_light, PDF_light);    
+            
 
-    Vector3f camera_intersect = emit_from_camera.coords;
-    Vector3f light_intersect = emit_from_light.coords;
+            Vector3f camera_intersect = emit_from_camera.coords;
+            Vector3f light_intersect = emit_from_light.coords;
 
-    Vector3f object_to_light_direction = (light_intersect - camera_intersect).normalized();
+            Vector3f object_to_light_direction = (light_intersect - camera_intersect).normalized();
 
-    float object_to_light_distance = (light_intersect - camera_intersect).norm();
+            float object_to_light_distance = (light_intersect - camera_intersect).norm();
 
 
-    Ray object_to_light_ray(camera_intersect, object_to_light_direction); 
-    Intersection object_to_light_intersect = intersect(object_to_light_ray);
-    // If the ray is not blocked in the middle
-    if(object_to_light_intersect.distance - object_to_light_distance > - EPLISON) {
-        L_direct = emit_from_light.emit
-            * emit_from_camera.m->eval(ray.direction, object_to_light_ray.direction, emit_from_camera.normal) 
-            * dotProduct(object_to_light_ray.direction, emit_from_camera.normal)
-            * dotProduct(- object_to_light_ray.direction, emit_from_light.normal)
-            / std::pow(object_to_light_distance, 2)
-            / PDF_light;
-    }
-    
-    // Test Russian Roulette with probability RussianRoulette
-    if(get_random_float() > RussianRoulette) {
-        return L_direct;
-    }
+            Ray object_to_light_ray(camera_intersect, object_to_light_direction); 
+            Intersection object_to_light_intersect = intersect(object_to_light_ray);
+            // If the ray is not blocked in the middle
+            if(object_to_light_intersect.distance - object_to_light_distance > - EPLISON) {
+                L_direct = emit_from_light.emit
+                    * emit_from_camera.m->eval(ray.direction, object_to_light_ray.direction, emit_from_camera.normal) 
+                    * dotProduct(object_to_light_ray.direction, emit_from_camera.normal)
+                    * dotProduct(- object_to_light_ray.direction, emit_from_light.normal)
+                    / std::pow(object_to_light_distance, 2)
+                    / PDF_light;
+            }
+            
+            // Test Russian Roulette with probability RussianRoulette
+            if(get_random_float() > RussianRoulette) {
+                return L_direct;
+            }
 
-    // caculate indirect emission
-    Vector3f object_to_next_object_direction = emit_from_camera.m->sample(ray.direction, emit_from_camera.normal).normalized();
-    Ray object_to_next_object_ray(emit_from_camera.coords, object_to_next_object_direction);
-    // If ray r hit a non-emitting object at q
-    Intersection next_object_intersection = Scene::intersect(object_to_next_object_ray);
-    if (next_object_intersection.happened && (! next_object_intersection.m->hasEmission())) {
-        float PDF = emit_from_camera.m->pdf(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal);
-        // if pdf near zero will cause a zero division then got white point
-        if (PDF > EPLISON) {
-            L_indirect = castRay(object_to_next_object_ray, depth + 1) 
-                * emit_from_camera.m->eval(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal)
-                * dotProduct(object_to_next_object_ray.direction, emit_from_camera.normal)
-                / PDF
-                / RussianRoulette;
+            // caculate indirect emission
+            Vector3f object_to_next_object_direction = emit_from_camera.m->sample(ray.direction, emit_from_camera.normal).normalized();
+            Ray object_to_next_object_ray(emit_from_camera.coords, object_to_next_object_direction);
+            // If ray r hit a non-emitting object at next_object_intersection
+            Intersection next_object_intersection = Scene::intersect(object_to_next_object_ray);
+            if (next_object_intersection.happened && (! next_object_intersection.m->hasEmission())) {
+                float PDF = emit_from_camera.m->pdf(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal);
+                // if pdf near zero will cause a zero division then got white point
+                if (PDF > EPLISON) {
+                    L_indirect = castRay(object_to_next_object_ray, depth + 1) 
+                        * emit_from_camera.m->eval(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal)
+                        * dotProduct(object_to_next_object_ray.direction, emit_from_camera.normal)
+                        / PDF
+                        / RussianRoulette;
+                }
+            }
+            break;
+        }
+        case MIRROR:
+        {
+            if(get_random_float() > RussianRoulette) {
+                return L_direct;
+            }
+            Vector3f object_to_next_object_direction = emit_from_camera.m->sample(ray.direction, emit_from_camera.normal).normalized();
+            Ray object_to_next_object_ray(emit_from_camera.coords, object_to_next_object_direction);
+            // If ray r hit a non-emitting object at next_object_intersection
+            Intersection next_object_intersection = Scene::intersect(object_to_next_object_ray);
+            float PDF = emit_from_camera.m->pdf(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal);
+            if (PDF > EPLISON) {
+                L_indirect = castRay(object_to_next_object_ray, depth + 1) 
+                    * emit_from_camera.m->eval(ray.direction, object_to_next_object_ray.direction, emit_from_camera.normal)
+                    * dotProduct(object_to_next_object_ray.direction, emit_from_camera.normal)
+                    / PDF
+                    / RussianRoulette;
+            }
+            break;
         }
     }
     
