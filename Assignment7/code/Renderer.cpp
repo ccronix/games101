@@ -22,15 +22,17 @@ void Renderer::Render(const Scene& scene, const int spp)
     float scale = tan(deg2rad(scene.fov * 0.5));
     float imageAspectRatio = scene.width / (float)scene.height;
     Vector3f eye_pos(0, 5, -18);
-    int m = 0;
+    // int pixel_count = 0;
 
     // change the spp value to change sample ammount
     std::cout << "SPP: " << spp << "\n";
 
     for (int j = 0; j < scene.height; ++j) {
+        // OpenMP multi-thread
+        #pragma omp parallel for
         for (int i = 0; i < scene.width; ++i) {
+            int pixel_count = j * scene.width + i;
             // generate primary ray direction
-            #pragma omp parallel for
             for (int k = 0; k < spp; k++){
                 
                 // MSAA emit direction ratio is k divide spp
@@ -38,9 +40,11 @@ void Renderer::Render(const Scene& scene, const int spp)
                 float y = (1 - 2 * (j + k / (float) spp) / (float) scene.height) * scale;
 
                 Vector3f direction = normalize(Vector3f(-x, y, 1));
-                framebuffer[m] += scene.castRay(Ray(eye_pos, direction), 0) / spp;  
+                Vector3f pixel_color = scene.castRay(Ray(eye_pos, direction), 0) / spp;
+                // if color is NaN return zero
+                pixel_color = Renderer::validColor(pixel_color);
+                framebuffer[pixel_count] += pixel_color;
             }
-            m++;
         }
         UpdateProgress(j / (float)scene.height);
     }
@@ -53,15 +57,26 @@ void Renderer::Render(const Scene& scene, const int spp)
 bool Renderer::writeImage(const int width, const int height, const std::vector<Vector3f> framebuffer, const char* path)
 {
     // save framebuffer to file
-    FILE* fp = fopen(path, "wb");
-    (void)fprintf(fp, "P6\n%d %d\n255\n", width, height);
+    FILE* fp = fopen(path, "w");
+    fprintf(fp, "P3\n%d %d\n255\n", width, height);
     for (int i = 0; i < width * height; i++) {
-        static unsigned char color[3];
-        color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
-        color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
-        color[2] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].z), 0.6f));
-        fwrite(color, 1, 3, fp);
+        static unsigned int color[3];
+        color[0] = (unsigned int)(255 * clamp(0, 1, std::pow(framebuffer[i].x, 0.35)));
+        color[1] = (unsigned int)(255 * clamp(0, 1, std::pow(framebuffer[i].y, 0.35)));
+        color[2] = (unsigned int)(255 * clamp(0, 1, std::pow(framebuffer[i].z, 0.35)));
+        fprintf(fp, "%ud %ud %ud\n", color[0], color[1], color[2]);
     }
-    fclose(fp);    
+    fclose(fp);
     return true;
+}
+
+
+Vector3f Renderer::validColor(const Vector3f pixel_color)
+{
+    if (pixel_color.x != pixel_color.x || pixel_color.y != pixel_color.y || pixel_color.z != pixel_color.z) {
+        return Vector3f(0, 0, 0);
+    }
+    else {
+        return pixel_color;
+    }
 }
